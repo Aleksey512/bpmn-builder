@@ -1,0 +1,46 @@
+version: '3.9'
+
+services:
+  ollama:
+    image: ollama/ollama:0.6.5
+    ports:
+      - 11434:11434
+    volumes:
+      - ollama_data:/root/.ollama
+    container_name: ollama
+    pull_policy: always
+    restart: always
+    tty: true
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    networks:
+        - spd-network
+
+
+  xinference:
+    image: xprobe/xinference:latest-cpu
+    command: xinference-local -H 0.0.0.0 --log-level debug
+    container_name: xinference
+    restart: always
+    environment:
+      - XINFERENCE_HOME=/data
+    ports:
+      - "9997:9997"
+      - "9998:9998"
+    volumes:
+      - xinference_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9997/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+        - spd-network
+
+volumes:
+  ollama_data:
+  xinference_data:
+
+networks:
+  spd-network:
+    driver: bridge

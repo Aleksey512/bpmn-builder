@@ -1,0 +1,18 @@
+version: '3.9'
+
+services:
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8000
+    ports:
+      - "3000:80"
+    networks:
+      - spd-network 
+
+networks:
+  spd-network:
+    driver: bridge
+

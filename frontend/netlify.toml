@@ -1,0 +1,26 @@
+[images]
+  remote_images = []
+
+[build]
+  command = "bun run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  BUN_VERSION = "1.0.0"
+
+[dev]
+  command = "bun run dev"
+  targetPort = 5173
+  port = 8888
+  publish = "dist"
+  autoLaunch = true
+  framework = "#custom"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[context.production.environment]
+  VITE_API_URL = "https://"

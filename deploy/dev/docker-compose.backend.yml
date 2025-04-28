@@ -1,0 +1,68 @@
+version: '3.9'
+
+x-main-app: &main-app
+  build:
+    context: ../../backend
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  env_file: ../../.env
+  working_dir: /app
+  volumes:
+    - ../../scripts/wait-for-it.sh:/scripts/wait-for-it.sh
+    - ../../backend:/app
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
+  networks:
+      - spd-network
+
+services:
+  api:
+    <<: *main-app
+    container_name: api
+    command: >
+      bash -ec "
+        chmod +x /scripts/wait-for-it.sh &&
+        /scripts/wait-for-it.sh postgres:5432 &&
+        /scripts/wait-for-it.sh redis:6379 &&
+        /scripts/wait-for-it.sh rabbitmq:5672 --
+        poetry run alembic upgrade head &&
+        poetry run python -m manage runserver
+      "
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/healthz" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  worker:
+    <<: *main-app
+    container_name: worker
+    command: >
+      bash -ec "
+        chmod +x ./scripts/wait-for-it.sh &&
+        /scripts/wait-for-it.sh postgres:5432 &&
+        /scripts/wait-for-it.sh redis:6379 &&
+        /scripts/wait-for-it.sh rabbitmq:5672 --
+        poetry run taskiq worker infra.brokers.taskiq:broker logic.tasks --reload
+      "
+
+  scheduler:
+    <<: *main-app
+    container_name: scheduler
+    command: >
+      bash -ec "
+        chmod +x ./scripts/wait-for-it.sh &&
+        /scripts/wait-for-it.sh postgres:5432 &&
+        /scripts/wait-for-it.sh redis:6379 &&
+        /scripts/wait-for-it.sh rabbitmq:5672 --
+        poetry run taskiq scheduler infra.brokers.taskiq:scheduler logic.tasks
+      "
+
+networks:
+  spd-network:
+    driver: bridge
